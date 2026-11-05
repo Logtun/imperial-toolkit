@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Imperial Toolkit: points, fees, liquidation and funding</title>
+<meta name="description" content="Two free calculators for Imperial's Solana perps: points and fees, and liquidation and funding risk. Built from Imperial's public docs and public API.">
+<meta name="theme-color" content="#0B0C0E">
+<meta property="og:title" content="Imperial Toolkit">
+<meta property="og:description" content="Points and fee calculator, and liquidation and funding risk checker for Imperial.">
+<meta property="og:image" content="og.png">
+<link rel="icon" href="favicon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <p class="wordmark" aria-label="Imperial Toolkit">IMPERIAL<span> TOOLKIT</span></p>
+    <p class="lede">Two calculators for Imperial's perps, built only from its public docs and public API.</p>
+    <nav class="tabs" role="tablist" aria-label="Tools">
+      <button id="tab-points" role="tab" aria-selected="true" aria-controls="panel-points" class="tab">Points + fees</button>
+      <button id="tab-risk" role="tab" aria-selected="false" aria-controls="panel-risk" class="tab" tabindex="-1">Liquidation + funding</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="panel-points" role="tabpanel" aria-labelledby="tab-points" class="panel">
+    <h1>Points + fee calculator</h1>
+    <p class="intro">Fees are exact from Imperial's fee table. Imperial has not published how points convert from volume, so this shows your fees and eligible volume only.</p>
+
+    <form class="card form" id="points-form" novalidate>
+      <label>Trade size (USD, one fill)
+        <input id="p-notional" type="number" inputmode="decimal" min="0" step="any" value="10000">
+      </label>
+      <label>Exit size (USD, leave blank to match)
+        <input id="p-exit" type="number" inputmode="decimal" min="0" step="any" placeholder="same as trade size">
+      </label>
+      <label>Round trips per week
+        <input id="p-trips" type="number" inputmode="numeric" min="0" step="1" value="5">
+      </label>
+      <label>Your average open interest (USD, optional)
+        <input id="p-oi" type="number" inputmode="decimal" min="0" step="any" placeholder="needed for the volume cap">
+      </label>
+    </form>
+
+    <div class="out" id="points-out" aria-live="polite"></div>
+
+    <h2>Rules, from Imperial's docs</h2>
+    <ul class="rules">
+      <li>
+        <p>Trading fee: 0.01% (1 bp) of notional, on open and on close. No platform fee, no spread markup.</p>
+        <p class="src">"Trading fee 0.01% (1 bp) of notional, on open and on close" · <a href="https://docs.imperial.space/trading/fees">docs.imperial.space/trading/fees</a></p>
+      </li>
+      <li>
+        <p>Builder fee: up to 0.10% per fill, only when you trade through a third-party app that sets one. Not included in the numbers above.</p>
+        <p class="src">"Up to 0.10%, only when trading through a third-party app that sets one" · <a href="https://docs.imperial.space/trading/fees">docs.imperial.space/trading/fees</a></p>
+      </li>
+      <li>
+        <p>Each week has a fixed pool: 15,000 points for trading and 5,000 for referrals. Your trading share comes from your volume that week.</p>
+        <p class="src">"15,000 for trading and 5,000 for referrals" · <a href="https://docs.imperial.space/rewards/points">docs.imperial.space/rewards/points</a></p>
+      </li>
+      <li>
+        <p>Eligible volume is capped at 250x your average open interest, so churn without holding positions earns no extra.</p>
+        <p class="src">"Eligible volume is capped at 250x your average open interest" · <a href="https://docs.imperial.space/rewards/points">docs.imperial.space/rewards/points</a></p>
+      </li>
+      <li>
+        <p>Boosts: Telegram linked, +0.50x for 7 days. Signing up with a referral code, +0.25x for 7 days. A boosted referral code, +0.50x for 30 days.</p>
+        <p class="src">Boosts table · <a href="https://docs.imperial.space/rewards/points#boosts">docs.imperial.space/rewards/points#boosts</a></p>
+      </li>
+      <li>
+        <p>Early access: you need an invite code to open positions. Every trader gets 3 codes to start, and each invitee who trades $1,000 of positions earns you one more.</p>
+        <p class="src">"Every trader gets 3 codes to start" · <a href="https://docs.imperial.space/rewards/referrals-and-invites">docs.imperial.space/rewards/referrals-and-invites</a></p>
+      </li>
+    </ul>
+    <p class="note"><strong>Assumption in this tool:</strong> each open and each close counts as trading volume toward the weekly split. Imperial's docs do not say how volume is counted, so check that before you plan around it.</p>
+  </section>
+
+  <section id="panel-risk" role="tabpanel" aria-labelledby="tab-risk" class="panel" hidden>
+    <h1>Liquidation + funding checker</h1>
+    <p class="intro">Live mark prices and funding from Imperial's public API. Liquidation is an approximation, labelled below.</p>
+
+    <div class="live" id="live-line" aria-live="polite">Loading Imperial's market data…</div>
+
+    <form class="card form" id="risk-form" novalidate>
+      <label>Market
+        <input id="r-market" list="markets" value="BTC" autocomplete="off" spellcheck="false">
+        <datalist id="markets"></datalist>
+      </label>
+      <fieldset class="side">
+        <legend>Side</legend>
+        <label><input type="radio" name="side" value="long" checked> Long</label>
+        <label><input type="radio" name="side" value="short"> Short</label>
+      </fieldset>
+      <label>Entry price (USD, blank = current mark)
+        <input id="r-entry" type="number" inputmode="decimal" min="0" step="any" placeholder="current mark">
+      </label>
+      <label>Position size (USD)
+        <input id="r-size" type="number" inputmode="decimal" min="0" step="any" value="1000">
+      </label>
+      <label>Leverage (x) <span class="hint" id="r-maxhint"></span>
+        <input id="r-lev" type="number" inputmode="decimal" min="1" step="any" value="10">
+      </label>
+    </form>
+
+    <div class="out" id="risk-out" aria-live="polite"></div>
+
+    <h2>What this assumes</h2>
+    <ul class="rules">
+      <li>
+        <p>Isolated margin, the position's own collateral (collateral = size ÷ leverage). Liquidation is when equity falls below maintenance margin, the market's rate times notional.</p>
+        <p class="src">"A margin account is liquidated when its equity falls below its maintenance margin, measured at the mark price" · <a href="https://docs.imperial.space/trading/liquidation">docs.imperial.space/trading/liquidation</a></p>
+      </li>
+      <li>
+        <p>Liquidation price here ignores fees and funding, and uses entry size for the maintenance rate. The real trigger sits a little closer to entry. Imperial's trade screen shows the exact price before you submit.</p>
+        <p class="src">"The trade screen shows your exact liquidation price" · <a href="https://docs.imperial.space/trading/margin">docs.imperial.space/trading/margin</a></p>
+      </li>
+      <li>
+        <p>Maintenance rate per market comes from the API (mmr), and is fixed when you open a position.</p>
+        <p class="src">"Each market has its own maintenance rate. It is fixed when you open the position" · <a href="https://docs.imperial.space/trading/margin">docs.imperial.space/trading/margin</a></p>
+      </li>
+      <li>
+        <p>Funding: when the rate is positive, longs pay shorts; when negative, shorts pay longs. It is charged on entry size, and capped at 0.05% per hour either way.</p>
+        <p class="src">"The rate can't exceed 0.05% per hour in either direction" · <a href="https://docs.imperial.space/trading/funding-rates">docs.imperial.space/trading/funding-rates</a></p>
+      </li>
+      <li>
+        <p>Isolated liquidation forfeits the remaining collateral. Fees are 0.01% on open and on close.</p>
+        <p class="src">"Remaining collateral of the liquidated position" · <a href="https://docs.imperial.space/trading/fees">docs.imperial.space/trading/fees</a></p>
+      </li>
+    </ul>
+    <p class="note">Funding cost assumes today's rate holds for the whole period. Rates move, so it is an estimate.</p>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p>by @iamlogtun · Not affiliated with Imperial · Built from public pages</p>
+    <p>Not financial advice. Check Imperial's own app before trading.</p>
+  </div>
+</footer>
+
+<script src="calc.js"></script>
+<script src="risk.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
